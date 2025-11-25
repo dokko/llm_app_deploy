@@ -1,0 +1,48 @@
+name: Deploy to Cloudflare Workers
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout deploy repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Start ssh-agent with read-only deploy key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.LLM_APP_DEPLOY_KEY }}
+
+      - name: Clone private source (read-only)
+        run: git clone --depth 1 "$PRIVATE_REPO_URL" private_llm_app
+        env:
+          PRIVATE_REPO_URL: ${{ secrets.LLM_APP_REPO_SSH }}
+
+      - name: Use Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: private_llm_app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: private_llm_app
+
+      - name: Deploy with Wrangler
+        run: npx wrangler deploy src/index.ts --config wrangler.toml
+        working-directory: private_llm_app
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # Optionally override the model; e.g., "@cf/meta/llama-3-8b-instruct"
+          SUMMARY_MODEL: ${{ secrets.SUMMARY_MODEL }}

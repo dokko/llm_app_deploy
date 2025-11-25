@@ -23,7 +23,7 @@ jobs:
       - name: Checkout private llm_app repo
         uses: actions/checkout@v4
         with:
-          repository: YOUR_ID/llm_app
+          repository: dokko/llm_app
           ssh-key: ${{ secrets.LLM_APP_DEPLOY_KEY }}
           path: llm_app
 
